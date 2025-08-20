@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    header {
+      width: 100%;
+      padding: 20px;
+      background-color: rgba(0,0,0,0.3);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-sizing: border-box;
+    }
+    h1 { margin: 0; font-size: 24px; }
+    button {
+      padding: 10px 20px;
+      border: none;
+      background-color: #ff4b5c;
+      color: white;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .card {
+      background-color: rgba(255,255,255,0.1);
+      padding: 30px;
+      border-radius: 12px;
+      margin-top: 50px;
+      text-align: center;
+      width: 300px;
+      transition: transform 0.3s, background-color 0.3s;
+      cursor: pointer;
+    }
+    .card:hover {
+      transform: scale(1.05);
+      background-color: rgba(255,255,255,0.2);
+    }
+    .card h2 {
+      margin: 0 0 10px 0;
+      font-size: 22px;
+    }
+    .card p {
+      margin: 0;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Dashboard</h1>
+    <button id="logoutBtn">Sign Out</button>
+  </header>
+
+  <div class="card" id="paymentCard">
+    <h2>Payment</h2>
+    <p>Click here to manage your items</p>
+  </div>
+
+  <script>
+    // Firebase config
+    const firebaseConfig = {
+  apiKey: "AIzaSyC3TawidTEkY318dTUXX4WDkZTMWiSQ24Y",
+  authDomain: "storage-b0f0c.firebaseapp.com",
+  databaseURL: "https://storage-b0f0c-default-rtdb.firebaseio.com",
+  projectId: "storage-b0f0c",
+  storageBucket: "storage-b0f0c.firebasestorage.app",
+  messagingSenderId: "240490334618",
+  appId: "1:240490334618:web:73f77de6ff9ab18e339223",
+  measurementId: "G-97984G4JJD"
+};
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    // Check login state
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Not Logged In',
+          text: 'You must login first!',
+          confirmButtonText: 'Go to Login'
+        }).then(() => {
+          window.location.href = 'login.html';
+        });
+      }
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      auth.signOut().then(() => {
+        Swal.fire({
+          icon: 'success',
+          title: 'Logged Out',
+          text: 'You have been signed out.',
+          timer: 1500,
+          showConfirmButton: false
+        }).then(() => {
+          window.location.href = 'login.html';
+        });
+      });
+    });
+
+    // Payment card click
+    document.getElementById('paymentCard').addEventListener('click', () => {
+      window.location.href = 'items.html';
+    });
+  </script>
+</body>
+</html>

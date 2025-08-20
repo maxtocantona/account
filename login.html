@@ -137,7 +137,6 @@ const firebaseConfig = {
   appId: "1:240490334618:web:73f77de6ff9ab18e339223",
   measurementId: "G-97984G4JJD"
 };
-
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -234,9 +233,11 @@ await update(userRef, {
 // Soo qaado name iyo number
 const name = userData.username || "";
 const number = userData.number || "";
+ const count = userData.count || "50"; 
+const countrycodes = userData.countryCodes || "252";                  
 
 // Samee deep link
-const deepLink = `creatercon://open?uid=${encodeURIComponent(user.uid)}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}&number=${encodeURIComponent(number)}`;
+const deepLink = `creatercon://open?uid=${encodeURIComponent(user.uid)}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}&number=${encodeURIComponent(number)}&count=${encodeURIComponent(count)}&allowedCodes=${encodeURIComponent(countrycodes)}`;
 
 alert(translations[currentLanguage].successfulLogin.replace('{attempts}', loginAttempts));
 
@@ -257,7 +258,7 @@ alert(translations[currentLanguage].successfulLogin.replace('{attempts}', loginA
             errorMessage.innerText = translations[currentLanguage].blockedAccount;
         } else {
             errorMessage.style.display = 'block';
-            errorMessage.innerText = translations[currentLanguage].noAccountFound;
+            errorMessage.innerText = translations[currentLanguage].noAccountFound + error.message;
         }
     }
 });

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-lang="registration">Registration</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="stylesheet" href="siyoober.css">
+</head>
+<body>
+    <div class="container">
+        <div class="signup-box">
+            <h2 data-lang="registration">Registration</h2>
+            <div id="error-message" class="error-message" style="display: none;"></div>
+            <div id="succes-message" class="succes-message" style="display: none;"></div>
+
+            <form>
+                <div class="input-box">
+                        <select id="country" required>
+                        <option value="" disabled selected data-lang="choose_country">Choose your country</option>
+                        <option value="Somaliland">Somaliland</option>
+                        <option value="Somalia">Somalia</option>
+                        <option value="Kenya">Kenya</option>
+                        <option value="Ethiopia">Ethiopia</option>
+                        <option value="Uganda">Uganda</option>
+                        <option value="Djibouti">Djibouti</option>
+                    </select>
+                </div>
+
+                <div class="input-box">
+                    <input type="text" id="username" required>
+                    <label data-lang="username">Username</label>
+                </div>
+
+                <div class="input-box">
+                    <input type="email" id="email" required>
+                    <label data-lang="email">Email</label>
+                </div>
+
+                <div class="input-box">
+                    <input type="number" id="number" required>
+                    <label data-lang="phone">Phone Number</label>
+                </div>
+
+                <div class="input-box">
+                    <input type="password" id="password" required>
+                    <label data-lang="password">Password</label>
+                </div>
+
+                <div class="input-box">
+                    <input type="number" id="pincode" required>
+                    <label data-lang="pin_code">Pin Code</label>
+                </div>
+
+                <button id="signUpBtn" type="button" data-lang="sign_up">Sign Up</button>
+
+                <p>
+                    <span data-lang="already_account">Already have an account?</span>
+                    <a href="login.html" data-lang="login">Login</a>
+                </p>
+            </form>
+        </div>
+
+        <div class="welcome-box">
+            <h2 data-lang="welcome">WELCOME!</h2>
+            <p data-lang="contact">If you experience any problems, please contact us.</p>
+            <a href="https://wa.me/252672146979" target="_blank" data-lang="contacts">Contact</a>
+
+            <br><br>
+            <label for="language" data-lang="choose_language">Choose Language:</label>
+            <select id="language">
+                <option value="en">English</option>
+                <option selected value="so">Somali</option>
+            </select>
+        </div>
+    </div>
+
+    <script type="module" src="siyoober.js"></script>
+</body>
+</html>
+<script type="module">
+// Import Firebase modules
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-database.js";
+
+// Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyC3TawidTEkY318dTUXX4WDkZTMWiSQ24Y",
+  authDomain: "storage-b0f0c.firebaseapp.com",
+  databaseURL: "https://storage-b0f0c-default-rtdb.firebaseio.com",
+  projectId: "storage-b0f0c",
+  storageBucket: "storage-b0f0c.firebasestorage.app",
+  messagingSenderId: "240490334618",
+  appId: "1:240490334618:web:73f77de6ff9ab18e339223",
+  measurementId: "G-97984G4JJD"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const database = getDatabase(app);
+
+// Country codes
+const countrySelect = document.getElementById("country");
+const numberInput = document.getElementById("number");
+const countryCodes = {
+        "Somalia": "252",
+        "Somaliland": "252",
+        "Kenya": "254",
+        "Ethiopia": "251",
+        "Uganda": "256",
+        "Djibouti": "253"
+    };
+countrySelect.addEventListener("change", function () {
+    
+    numberInput.value = countryCodes[this.value] || "";
+});
+
+// Handle Sign Up
+document.getElementById('signUpBtn').addEventListener('click', async () => {
+    const username = document.getElementById("username").value.trim();
+    const email = document.getElementById('email').value.trim();
+    const country = document.getElementById("country").value;
+    const number = numberInput.value.trim();
+    const password = document.getElementById('password').value;
+    const pin = document.getElementById('pincode').value;
+    const errorMessage = document.getElementById('error-message');
+    const successMessage = document.getElementById('succes-message');
+    
+const count = 100;
+    // Clear messages
+    errorMessage.style.display = 'none';
+    errorMessage.innerText = '';
+    successMessage.style.display = 'none';
+    successMessage.innerText = '';
+
+    try {
+        if (!country) return showError("choose_country");
+        if (!username || username.length > 25) return showError("error_invalid_username");
+        if (!isValidEmail(email)) return showError("error_invalid_email");
+        if (!number || number.length < 10) return showError("error_phone_required");
+        if (!pin || pin.length !== 4) return showError("error_pin");
+        if (password.length < 8) return showError("error_password_length");
+
+        const snapshot = await get(ref(database, `users/`));
+        let emailExists = false, numberExists = false, usernameExists = false;
+        snapshot.forEach(childSnapshot => {
+            const userData = childSnapshot.val();
+            if (userData.email === email) emailExists = true;
+            if (userData.number === number) numberExists = true;
+            if (userData.username === username) usernameExists = true;
+        });
+
+        if (emailExists) return showError("error_email_exists");
+        if (numberExists) return showError("error_phone_exists");
+        if (usernameExists) return showError("error_username_exists");
+
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        await set(ref(database, `users/${user.uid}`), {
+  username,
+  email,
+  country,
+  number,
+  Pin: pin,
+  count: count,
+  countryCodes: countryCodes[country] || "",
+  pinned: true,
+  logo: country,
+  signUpDate: new Date().toISOString()
+});
+        
+                
+
+        showSuccess("success_account_created");
+
+        setTimeout(() => {
+            window.location.href = "login.html";
+        }, 2000);
+
+    } catch (error) {
+        showErrorMessage(error);
+    }
+});
+
+// Email format validator
+function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// Show error message
+function showError(key) {
+    const errorMessage = document.getElementById('error-message');
+    errorMessage.style.display = 'block';
+    errorMessage.innerText = translations[currentLanguage][key] || key;
+}
+
+// Show success message
+function showSuccess(key) {
+    const successMessage = document.getElementById('succes-message');
+    successMessage.style.display = 'block';
+    successMessage.innerText = translations[currentLanguage][key] || key;
+}
+
+// Firebase error handler
+function showErrorMessage(error) {
+    const key = firebaseErrorToTranslationKey(error.code);
+    showError(key || error.message);
+}
+
+function firebaseErrorToTranslationKey(code) {
+    const map = {
+        "auth/email-already-in-use": "error_email_exists",
+        "auth/invalid-email": "error_invalid_email",
+        "auth/weak-password": "error_password_length"
+    };
+    return map[code];
+}
+
+// Translations
+const translations = {
+    en: {
+        registration: "Registration",
+        limited_reached: "You reached the limit of account creation",
+        sign_up: "Sign Up",
+        already_account: "Already have an account?",
+        login: "Login",
+        choose_country: "Please choose your country",
+        username: "Username",
+        choose_language: "Choose language",
+        email: "Email",
+        phone: "Phone Number",
+        password: "Password",
+        pin_code: "Pin Code",
+        welcome: "WELCOME!",
+        contact: "If you experience any problems, please contact us",
+        error_invalid_username: "Invalid username",
+        error_invalid_email: "Invalid email address",
+        error_phone_required: "Phone number is required",
+        error_pin: "Pin must be 4 digits",
+        error_password_length: "Password must be at least 8 characters long",
+        error_email_exists: "Email already registered",
+        error_phone_exists: "Phone number already registered",
+        error_username_exists: "Username is taken",
+        success_account_created: "Account created successfully"
+    },
+    so: {
+        registration: "Diiwaangelin",
+        limited_reached: "Waxaad gaadhay xadka samaynta akoonyada",
+        sign_up: "Diiwaangeli",
+        already_account: "Horey ma u leedahay xisaab?",
+        login: "Soo gal",
+        choose_country: "Fadlan dooro waddankaaga",
+        username: "Magaca Isticmaalaha",
+        choose_language: "Doooro luuqada",
+        email: "Email",
+        phone: "Lambarka Telefoonka",
+        password: "Furaha Sirta",
+        pin_code: "Koodhka Sirta",
+        welcome: "SOO DHAWOOW!",
+        contact: "Haddi aad cilad dareento nala soo xiriir",
+        error_invalid_username: "Magaca isticmaalaha sax ma aha",
+        error_invalid_email: "Cinwaanka email-ka sax ma aha",
+        error_phone_required: "Lambarka telefoonka waa lagama maarmaan",
+        error_pin: "Koodhka waa inuu noqdaa 4 lambar",
+        error_password_length: "Furaha sirta waa inuu ka badanyahay 8 xaraf",
+        error_email_exists: "Email horey loo diiwaangeliyey",
+        error_phone_exists: "Lambarka telefoonka horey loo diiwaangeliyey",
+        error_username_exists: "Magaca isticmaalaha waa la isticmaalay",
+        success_account_created: "Akaawnka waa lagu guuleystay"
+    }
+};
+
+// Language switcher
+const languageSelect = document.getElementById("language");
+let currentLanguage = "so";
+
+languageSelect.addEventListener("change", function () {
+    currentLanguage = this.value;
+    switchLanguage(currentLanguage);
+});
+
+function switchLanguage(lang) {
+    document.querySelectorAll("[data-lang]").forEach(element => {
+        const key = element.getAttribute("data-lang");
+        if (translations[lang][key]) {
+            element.innerHTML = translations[lang][key];
+        }
+    });
+}
+
+// Default language and account limit checker
+switchLanguage(currentLanguage);
+</script>

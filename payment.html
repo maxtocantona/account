@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Payment</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+  body { font-family: Arial; background: linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; margin:0; padding:20px; }
+  h2 { text-align:center; margin-bottom:20px; }
+  .form-group { margin-bottom:10px; }
+  label { display:block; margin-bottom:5px; }
+  input, select { width:100%; padding:8px; border-radius:5px; border:none; }
+  button { width:100%; padding:10px; margin-top:10px; border:none; border-radius:5px; background:linear-gradient(90deg,#28a745,#218838); color:#fff; font-weight:bold; cursor:pointer; }
+  #claim-button { display:none; background:#007bff; margin-top:5px; }
+  #send-money-button { background:#ff416c; margin-top:5px; }
+  #message { margin-top:15px; font-weight:bold; text-align:center; }
+</style>
+</head>
+<body>
+
+<h2>Payment Page</h2>
+
+<div id="item"></div>
+<div id="price"></div>
+
+<div class="form-group"><label>Username</label><input type="text" id="username"></div>
+<div class="form-group"><label>Email</label><input type="email" id="email"></div>
+<div class="form-group"><label>Phone</label><input type="text" id="phone"></div>
+
+<div class="form-group">
+  <label>Payment Method</label>
+  <select id="paymentMethod">
+    <option value="none">Select method</option>
+    <option value="EVC">EVC</option>
+    <option value="Zaad">Zaad</option>
+    <option value="Bank">Bank</option>
+  </select>
+</div>
+
+<div class="form-group">
+  <label>Currency Type</label>
+  <select id="currencyType">
+    <option value="none">Select currency</option>
+    <option value="USD">USD</option>
+    <option value="SOS">SOS</option>
+  </select>
+</div>
+
+<div class="form-group"><label>Payment Number</label><input type="text" id="paymentNumber"></div>
+
+<button id="request-button">Request Payment</button>
+<button id="send-money-button">Send Money</button>
+<button id="claim-button">Claim</button>
+<div id="message"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+import { getDatabase, ref, set, update, get, remove } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-database.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC3TawidTEkY318dTUXX4WDkZTMWiSQ24Y",
+  authDomain: "storage-b0f0c.firebaseapp.com",
+  databaseURL: "https://storage-b0f0c-default-rtdb.firebaseio.com",
+  projectId: "storage-b0f0c",
+  storageBucket: "storage-b0f0c.firebasestorage.app",
+  messagingSenderId: "240490334618",
+  appId: "1:240490334618:web:73f77de6ff9ab18e339223",
+  measurementId: "G-97984G4JJD"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
+
+const urlParams = new URLSearchParams(window.location.search);
+var item = urlParams.get("item:detailshtmlhex1290pllknmagdhssg") || "Unknown item";
+const price = urlParams.get("price:detailshtmlhex1290pllknmagdhssg") || "0";
+document.getElementById("item").innerText = "item: " + item;
+document.getElementById("price").innerText = "price: " + price;
+
+const messageElement = document.getElementById("message");
+const claimButton = document.getElementById("claim-button");
+
+function checkLogin(){
+  if(!auth.currentUser){
+    Swal.fire("Error","Please login first.","error");
+    return false;
+  }
+  return true;
+}
+
+document.getElementById("request-button").addEventListener("click", async () => {
+  if(!checkLogin()) return;
+
+  const username = document.getElementById("username").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const paymentMethod = document.getElementById("paymentMethod").value;
+  const currencyType = document.getElementById("currencyType").value;
+  const paymentNumber = document.getElementById("paymentNumber").value.trim();
+
+  if(!username || !email || !phone){
+    messageElement.innerText="Please fill in all required fields.";
+    return;
+  }
+  if(phone.length<10){
+    messageElement.innerText="Phone number must be at least 10 digits.";
+    return;
+  }
+  if(paymentMethod==="none" || currencyType==="none"){
+    messageElement.innerText="Select payment method and currency type.";
+    return;
+  }
+
+  const uid = auth.currentUser.uid;
+  const paymentRef = ref(db,`users/${uid}/payment/${item}`);
+
+  try{
+    const snap = await get(paymentRef);
+    if(snap.exists()){
+      const data = snap.val();
+      if(data.item===item){
+        if(data.pur==="false"){
+          Swal.fire("Pending","Already requested this item.","info");
+        } else if(data.pur==="true"){
+          Swal.fire("Success","Successfully item purchased!","success");
+          claimButton.style.display="block";
+        }
+        return;
+      }
+    }
+
+    await set(paymentRef,{
+      pur:"false",
+      item:item,
+      qiimaha:price,
+      username,email,phone,paymentMethod,currencyType,paymentNumber
+    });
+    Swal.fire("Requested","Payment request submitted.","success");
+  } catch(err){
+    messageElement.innerText="Error: "+err.message;
+  }
+});
+
+document.getElementById("send-money-button").addEventListener("click", () => {
+  if(!checkLogin()) return;
+
+  const paymentMethod = document.getElementById("paymentMethod").value;
+  const currencyType = document.getElementById("currencyType").value;
+  let priceNum = parseFloat(price) || 0;
+  if(currencyType==="SOS") priceNum*=10000;
+
+  if(priceNum <= 0){
+    Swal.fire("Error","Invalid price for USSD.","error");
+    return;
+  }
+
+  let ussdCode="";
+  if(paymentMethod==="Zaad") ussdCode=`*880*634041087*${priceNum.toFixed(0)}#`;
+  else if(paymentMethod==="EVC") ussdCode=`*150*634041087*${priceNum.toFixed(0)}#`;
+  else if(paymentMethod==="Bank") ussdCode=`*200*634041087*${priceNum.toFixed(0)}#`;
+
+  if(ussdCode) window.location.href=`tel:${ussdCode}`;
+  else Swal.fire("Error","Please select payment method and currency type.","error");
+});
+
+claimButton.addEventListener("click", async ()=>{
+  if(!checkLogin()) return;
+  const uid = auth.currentUser.uid;
+  const paymentRef = ref(db, `users/${uid}/payment/${item}`);
+
+  try{
+    const snap = await get(paymentRef);
+    if(!snap.exists()){
+      Swal.fire("Error","No payment request found for this user.","error");
+      return;
+    }
+
+    const userData = snap.val();
+    const name = userData.username || "";
+    const number = userData.phone || "";
+    const email = userData.email || "";
+    const count = userData.count || "50";
+    const countrycodes = userData.countryCodes || "252";
+
+    const deepLink = `creatercon://open?uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}&number=${encodeURIComponent(number)}&count=${encodeURIComponent(count)}&allowedCodes=${encodeURIComponent(countrycodes)}`;
+
+    if(userData.item.toLowerCase() === "unlimited countrycodes"){
+      await update(ref(db,`users/${uid}`), { countryCodes: "unlimited" });
+    } else if (userData.item.toLowerCase() === "unlimited count") {
+      await update(ref(db,`users/${uid}`), { count: "unlimited" });
+    }
+
+    await remove(paymentRef);
+    Swal.fire("Claimed", "Item claimed successfully", "success");
+    claimButton.style.display="none";
+    messageElement.innerText="";
+    setTimeout(() => { window.location.href = deepLink; }, 1000);
+
+  }catch(err){
+    messageElement.innerText="Error: "+err.message;
+  }
+});
+
+// Optional: Show claim button if item already purchased
+onAuthStateChanged(auth, async user => {
+  if(user){
+    const paymentRef = ref(db,`users/${user.uid}/payment/${item}`);
+    const snap = await get(paymentRef);
+    if(snap.exists()){
+      const data = snap.val();
+      if(data.pur === "true") claimButton.style.display = "block";
+    }
+  }
+});
+</script>
+</body>
+</html>
