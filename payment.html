@@ -11,9 +11,10 @@
   .form-group { margin-bottom:10px; }
   label { display:block; margin-bottom:5px; }
   input, select { width:100%; padding:8px; border-radius:5px; border:none; }
-  button { width:100%; padding:10px; margin-top:10px; border:none; border-radius:5px; background:linear-gradient(90deg,#28a745,#218838); color:#fff; font-weight:bold; cursor:pointer; }
-  #claim-button { display:none; background:#007bff; margin-top:5px; }
-  #send-money-button { background:#ff416c; margin-top:5px; }
+  button { width:100%; padding:10px; margin-top:10px; border:none; border-radius:5px; font-weight:bold; cursor:pointer; }
+  #request-button { background:linear-gradient(90deg,#28a745,#218838); color:#fff; }
+  #claim-button { display:none; background:#007bff; margin-top:5px; color:#fff; }
+  #send-money-button { background:#ff416c; margin-top:5px; color:#fff; }
   #message { margin-top:15px; font-weight:bold; text-align:center; }
 </style>
 </head>
@@ -94,14 +95,14 @@ function checkLogin(){
 document.getElementById("request-button").addEventListener("click", async () => {
   if(!checkLogin()) return;
 
-  const username = document.getElementById("username").value.trim();
-  const email = document.getElementById("email").value.trim();
+  const username1 = document.getElementById("username").value.trim();
+  const email1 = document.getElementById("email").value.trim();
   const phone = document.getElementById("phone").value.trim();
   const paymentMethod = document.getElementById("paymentMethod").value;
   const currencyType = document.getElementById("currencyType").value;
   const paymentNumber = document.getElementById("paymentNumber").value.trim();
 
-  if(!username || !email || !phone){
+  if(!username1 || !email1 || !phone){
     messageElement.innerText="Please fill in all required fields.";
     return;
   }
@@ -136,7 +137,7 @@ document.getElementById("request-button").addEventListener("click", async () => 
       pur:"false",
       item:item,
       qiimaha:price,
-      username,email,phone,paymentMethod,currencyType,paymentNumber
+      username1,email1,phone,paymentMethod,currencyType,paymentNumber
     });
     Swal.fire("Requested","Payment request submitted.","success");
   } catch(err){
@@ -166,45 +167,54 @@ document.getElementById("send-money-button").addEventListener("click", () => {
   else Swal.fire("Error","Please select payment method and currency type.","error");
 });
 
-claimButton.addEventListener("click", async ()=>{
+claimButton.addEventListener("click", async () => {
   if(!checkLogin()) return;
+
   const uid = auth.currentUser.uid;
   const paymentRef = ref(db, `users/${uid}/payment/${item}`);
+  const userRef = ref(db, `users/${uid}`);
 
-  try{
+  try {
     const snap = await get(paymentRef);
     if(!snap.exists()){
-      Swal.fire("Error","No payment request found for this user.","error");
+      Swal.fire("Error","Payment request not found.","error");
       return;
     }
 
-    const userData = snap.val();
-    const name = userData.username || "";
-    const number = userData.phone || "";
-    const email = userData.email || "";
-    const count = userData.count || "50";
-    const countrycodes = userData.countryCodes || "252";
-
-    const deepLink = `creatercon://open?uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}&number=${encodeURIComponent(number)}&count=${encodeURIComponent(count)}&allowedCodes=${encodeURIComponent(countrycodes)}`;
-
-    if(userData.item.toLowerCase() === "unlimited countrycodes"){
-      await update(ref(db,`users/${uid}`), { countryCodes: "unlimited" });
-    } else if (userData.item.toLowerCase() === "unlimited count") {
-      await update(ref(db,`users/${uid}`), { count: "unlimited" });
+    const paymentData = snap.val();
+    
+    // Update user data based on purchased item
+    const updates = {};
+    if(paymentData.item === "Unlimited CountryCodes"){
+      updates.countryCodes = "unlimited";
+    } else if(paymentData.item === "Unlimited Count'"){
+      updates.count = "unlimited";
     }
 
-    await remove(paymentRef);
-    Swal.fire("Claimed", "Item claimed successfully", "success");
-    claimButton.style.display="none";
-    messageElement.innerText="";
-    setTimeout(() => { window.location.href = deepLink; }, 1000);
+    if(Object.keys(updates).length > 0){
+      await update(userRef, updates);  // <-- Halkan userRef ayaa la update-gareynayaa
+    }
 
-  }catch(err){
-    messageElement.innerText="Error: "+err.message;
+    // Remove the payment request
+    await remove(paymentRef);
+
+    // Akhri xogta user-ka cusub
+    const snapUser = await get(userRef);
+    const userData = snapUser.val() || {};
+    const deepLink = `creatercon://open?uid=${encodeURIComponent(uid)}&name=${encodeURIComponent(userData.username || '')}&email=${encodeURIComponent(userData.email || '')}&number=${encodeURIComponent(userData.number || '')}&count=${encodeURIComponent(userData.count || '50')}&allowedCodes=${encodeURIComponent(userData.countryCodes || '')}`;
+
+    Swal.fire("Success","Opening app...","success");
+
+    setTimeout(() => {
+      window.location.href = deepLink;
+    }, 1000);
+
+  } catch(err) {
+    messageElement.innerText = "Error: " + err.message;
   }
 });
 
-// Optional: Show claim button if item already purchased
+// Show claim button if item already purchased
 onAuthStateChanged(auth, async user => {
   if(user){
     const paymentRef = ref(db,`users/${user.uid}/payment/${item}`);
